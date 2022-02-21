@@ -1,0 +1,21 @@
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+      templates:
+        - condition:
+            contains:
+                docker.container.image: mysql
+          config:
+            - type: log
+              enabled: true
+              paths:
+                - /usr/share/filebeat/logs/mysql/*.log
+        
+processors:
+  - add_cloud_metadata: ~
+
+output.elasticsearch:
+  hosts: "${ELASTICSEARCH_HOSTS:elasticsearch:9200}"
+  username: "${ELASTICSEARCH_USERNAME:}"
+  password: "${ELASTICSEARCH_PASSWORD:}"

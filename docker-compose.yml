@@ -1,0 +1,82 @@
+version: "3.7"
+
+services:
+    elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.16.0
+        environment:
+            - cluster.name=es-docker-cluster
+            - discovery.type=single-node
+            - bootstrap.memory_lock=true
+            - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+            - xpack.security.enabled=false
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        volumes:
+            - elastic-data:/usr/share/elasticsearch/data
+        ports:
+            - 9200:9200
+        networks:
+            - elastic
+        labels:
+            - co.elastic.logs/enabled=false
+    kibana:
+        image: docker.elastic.co/kibana/kibana:7.16.0
+        ports:
+            - 5601:5601
+        networks:
+            - elastic
+        labels:
+            - co.elastic.logs/enabled=false
+    cerebro:
+        image: lmenezes/cerebro
+        ports:
+        - 9000:9000
+        networks:
+        - elastic 
+
+    filebeat:
+        image: docker.elastic.co/beats/filebeat:7.16.0
+        user: root
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - /var/lib/docker/containers:/var/lib/docker/containers:ro
+            - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml
+            - ./filebeat/modules.d:/usr/share/filebeat/modules.d
+            - ./logs:/usr/share/filebeat/logs
+        command: ["--strict.perms=false"]
+        networks:
+            - elastic
+
+    metricbeat:
+        image: docker.elastic.co/beats/metricbeat:7.16.0
+        user: root
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - ./metricbeat/config/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+            - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+            - /proc:/hostfs/proc:ro
+            - /:/hostfs:ro
+        command: ["--strict.perms=false"]
+        networks:
+            - elastic
+
+    packetbeat:
+        image: docker.elastic.co/beats/packetbeat:7.16.0
+        user: packetbeat
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+            - ./packetbeat/config/packetbeat.yml:/usr/share/packetbeat/packetbeat.yml:ro
+        command: ["--strict.perms=false"]
+        cap_add:
+            - NET_RAW
+            - NET_ADMIN        
+        networks:
+            - elastic            
+            
+volumes:
+    elastic-data:
+networks:
+  elastic:
+    driver: bridge
